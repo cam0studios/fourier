@@ -1,8 +1,8 @@
 // editable vars
 var waves = [
-	{ freq: 3, amp: 0.7, phase: 0 },
-	{ freq: 4, amp: 0.3, phase: 3.14 },
-	{ freq: 9, amp: 0.2, phase: 0 },
+	{ freq: 1, amp: 1, phase: 0 },
+	{ freq: 1, amp: 0, phase: 0 },
+	{ freq: 1, amp: 0, phase: 0 },
 ];
 var duration = 1;
 var numSamples = 500;
@@ -16,7 +16,7 @@ var waveNames = ["Wave A", "Wave B", "Wave C"];
 // setup vars
 var circleGraphSize = innerHeight - lineGraphSize;
 var frequencyEditor = document.getElementById("frequencies");
-frequencyEditor.innerHTML = waves.map((wave, i) => `<div class="frequency" id="wave${i}" style="--color: ${waveCols[i]};--current-color: ${waveCols[i]};"><div><p data-var="waves${i}freq">Frequency: <span>${formatNumber(wave.freq, 2)}</span></p><p data-var="waves${i}amp">Amplitude: <span>${formatNumber(wave.amp, 2)}</span></p><p data-var="waves${i}phase">Phase &nbsp;&nbsp; : <span>${formatNumber(wave.phase, 2)}</span></p></div><p>${waveNames[i]}</p></div>`).join("");
+frequencyEditor.innerHTML = waves.map((wave, i) => `<div class="frequency" id="wave${i}" style="--color: ${waveCols[i]};--current-color: ${waves[i].amp > 0 ? waveCols[i] : "rgb(100,100,100)"};"><div><p data-var="waves${i}freq">Frequency: <span>${formatNumber(wave.freq, 2)}</span></p><p data-var="waves${i}amp">Amplitude: <span>${formatNumber(wave.amp, 2)}</span></p><p data-var="waves${i}phase">Phase &nbsp;&nbsp; : <span>${formatNumber(wave.phase, 2)}</span></p></div><p>${waveNames[i]}</p></div>`).join("");
 var testFrequencySize = document.getElementById("testFrequency").offsetWidth;
 var frequencyEditorSize = document.getElementById("frequencies").offsetWidth;
 document.body.style.setProperty("--line-graph-height", lineGraphSize + "px");
@@ -31,7 +31,6 @@ const editablesSketch = new p5(editables);
 
 // sample points
 samplePoints();
-
 
 function editables(sketch) {
 	sketch.setup = () => {
@@ -52,7 +51,6 @@ function editables(sketch) {
 					if (element.getAttribute("data-var").startsWith("waves")) {
 						let parent = element.parentElement.parentElement;
 						let wave = waves[parent.getAttribute("id").split("wave")[1]];
-						console.log(parent.style.getPropertyValue("--color"));
 						if (wave.amp > 0) parent.style.setProperty("--current-color", parent.style.getPropertyValue("--color"));
 						else parent.style.setProperty("--current-color", "rgb(100,100,100)");
 					}
@@ -77,6 +75,7 @@ function renderLineGraph(sketch) {
 	let mode = 0;
 	let modePos = 0;
 	let modes = 2;
+	let hover = 0;
 	sketch.setup = () => {
 		sketch.createCanvas(innerWidth, lineGraphSize);
 		sketch.textFont("monospace");
@@ -109,12 +108,12 @@ function renderLineGraph(sketch) {
 			points.forEach((y, x) => {
 				sketch.stroke(lineCol);
 				sketch.strokeWeight(4);
-				sketch.point(x / (numSamples - 1) / duration * (innerWidth - 150) + 50, size / 2 + 50 - y * size / 2);
+				sketch.point(x / (numSamples - 1) / duration * (innerWidth - 150) + 50, size / 2 + 50 - y * (size - 4) / 2);
 			});
 		} else if (mode == 1) {
 			// lines
 			for (let r = 0; r <= 15; r++) {
-				let dst = calcCenterOfMass(r).mag() * size;
+				let dst = calcCenterOfMass(r).mag() * (size - 2);
 				labels.push(dst >= 10);
 				if (dst >= 5) {
 					sketch.stroke(100);
@@ -124,7 +123,7 @@ function renderLineGraph(sketch) {
 					sketch.noStroke();
 					sketch.fill(100);
 					sketch.textAlign("center", "bottom");
-					sketch.text(formatNumber(dst / size, 2), x, size + 35 - dst);
+					sketch.text(formatNumber(dst / (size - 2), 2), x, size + 35 - dst);
 				}
 			}
 
@@ -135,7 +134,7 @@ function renderLineGraph(sketch) {
 			for (let r = 0; r <= 15; r += 15 / numCOMSamples) {
 				let center = calcCenterOfMass(r);
 				let x = r / 15 * (innerWidth - 150) + 50;
-				let point = new p5.Vector(x, size + 50 - center.mag() * size);
+				let point = new p5.Vector(x, size + 50 - center.mag() * (size - 2));
 				if (r > 0) {
 					sketch.stroke(lineCol);
 					sketch.line(lastPoint.x, lastPoint.y, point.x, point.y);
@@ -148,6 +147,12 @@ function renderLineGraph(sketch) {
 		sketch.noFill();
 		sketch.stroke(0);
 		let weight = 50;
+		sketch.strokeWeight(weight);
+		sketch.rect(50 - weight / 2, 50 - weight / 2, innerWidth - 150 + weight, size + weight);
+
+		// border
+		sketch.stroke(50);
+		weight = 5;
 		sketch.strokeWeight(weight);
 		sketch.rect(50 - weight / 2, 50 - weight / 2, innerWidth - 150 + weight, size + weight);
 
@@ -174,12 +179,22 @@ function renderLineGraph(sketch) {
 		}
 
 		//switcher
+		if (new p5.Vector(sketch.mouseX, sketch.mouseY).sub(new p5.Vector(innerWidth - 50, size / 2 + 50)).mag() < 20) {
+			hover += (1 - hover) * 0.25;
+		} else {
+			hover -= hover * 0.25;
+		}
+		sketch.fill(hover * 15);
+		sketch.noStroke();
+		sketch.ellipse(innerWidth - 50, size / 2 + 50, 40, 40);
+
 		sketch.noFill();
-		sketch.stroke(30);
+		sketch.stroke(35);
 		sketch.strokeWeight(10);
 		sketch.line(innerWidth - 50, size / 2 + 40, innerWidth - 50, size / 2 + 60);
 		sketch.stroke(100);
-		sketch.point(innerWidth - 50, size / 2 + 40 + modePos * 20);
+		sketch.strokeWeight(10 + hover * 1);
+		sketch.point(innerWidth - 50, size / 2 + 40 + modePos * 20 + hover * (modePos - 0.5) * 5);
 		modePos += (mode / (modes - 1) - modePos) * 0.5;
 
 		// frame rate
@@ -218,13 +233,20 @@ function renderCircleGraph(sketch) {
 			sketch.line(size / 2, i + size / 2 + amtLeft / 2, size / 2, i + size / 2 + 5 + amtLeft / 2);
 		}
 
+		// border
+		sketch.noFill();
+		sketch.stroke(50);
+		let weight = 10;
+		sketch.strokeWeight(10);
+		sketch.ellipse(size / 2, size / 2, size - 100 + weight, size - 100 + weight);
+
 		// points
 		points.forEach((y, x) => {
 			sketch.stroke(lineCol);
 			sketch.strokeWeight(7);
 			let p = new p5.Vector(y, 0);
 			p.rotate(x / (numSamples - 1) * Math.PI * 2 * testFrequency);
-			p.mult(size / 2 - 50);
+			p.mult(size / 2 - 50 - 7 / 2);
 			sketch.point(p.x + size / 2, p.y + size / 2);
 		});
 		let center = calcCenterOfMass();
@@ -240,10 +262,11 @@ function renderCircleGraph(sketch) {
 		sketch.ellipse(center.x + size / 2, center.y + size / 2, 25, 25);
 
 		// masking
-		/*sketch.noFill();
+		sketch.noFill();
 		sketch.stroke(0);
-		sketch.strokeWeight(10);
-		sketch.ellipse(size / 2, size / 2, size - 80, size - 80);*/
+		weight = 105;
+		sketch.strokeWeight(weight);
+		sketch.ellipse(size / 2, size / 2, size + weight, size + weight);
 
 		// frame rate
 		// sketch.fill(100);
@@ -322,7 +345,7 @@ function samplePoints() {
 	for (let i = 0; i < numSamples * duration; i++) {
 		let num = 0;
 		waves.forEach(wave => {
-			num += Math.sin(wave.phase + (i * Math.PI * 2 * wave.freq / (numSamples - 1))) * wave.amp;
+			num += Math.cos(wave.phase + (i * Math.PI * 2 * wave.freq / (numSamples - 1))) * wave.amp;
 		});
 		points.push(num);
 	}
